@@ -5,10 +5,20 @@ spring:
     default: default
   config:
     import: "optional:configserver:http://localhost:7777"
+cloud:
+  stream:
+    kafka:
+      binder:
+        brokers: localhost:9092
+    function:
+      binding:
+        consumerReport-out-0:
+          destination: consumerReport
+
 server:
   servlet:
     context-path: /report-ms
-  port: 0
+  port: 7070
 eureka:
   instance:
     instance-id: "${spring.application.name}:${random.value}"

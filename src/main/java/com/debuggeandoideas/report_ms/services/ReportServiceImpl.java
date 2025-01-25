@@ -3,14 +3,16 @@ package com.debuggeandoideas.report_ms.services;
 import com.debuggeandoideas.report_ms.helpers.ReportHelper;
 import com.debuggeandoideas.report_ms.models.Company;
 import com.debuggeandoideas.report_ms.models.WebSite;
+import com.debuggeandoideas.report_ms.repositories.CompaniesFallbackRepository;
 import com.debuggeandoideas.report_ms.repositories.CompaniesRepository;
+import com.debuggeandoideas.report_ms.streams.ReportPublisher;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.stream.Stream;
 
 @Service
@@ -19,12 +21,18 @@ import java.util.stream.Stream;
 public class ReportServiceImpl implements ReportService{
     private final CompaniesRepository companiesRepository;
     private final ReportHelper reportHelper;
+    private final CompaniesFallbackRepository companiesFallbackRepository;
+    private final Resilience4JCircuitBreakerFactory circuitBreakerFactory;
+    private final ReportPublisher reportPublisher;
 
 
     @Override
     public String makeReport(String name) {
-        return reportHelper.readTemplate(this.companiesRepository.getByName(name).orElseThrow());
-
+        var circuitBraker = this.circuitBreakerFactory.create("companies-circuitbreaker");
+        return circuitBraker.run(
+                () -> this.makeReportMain(name),
+                throwable -> this.makeReportFallback(name, throwable)
+        );
     }
 
     @Override
@@ -40,6 +48,7 @@ public class ReportServiceImpl implements ReportService{
                 .founder(placeHolders.get(2))
                 .webSites(webSites)
                 .build();
+        this.reportPublisher.publishReport(report);
         this.companiesRepository.postByName(company);
         return "Saved";
     }
@@ -47,5 +56,25 @@ public class ReportServiceImpl implements ReportService{
     @Override
     public void deleteReport(String name) {
         this.companiesRepository.deleteByName(name);
+    }
+
+    /**
+     * If Everything is good, it will execute
+     * @param name
+     * @return
+     */
+    private String makeReportMain(String name) {
+        return reportHelper.readTemplate(this.companiesRepository.getByName(name).orElseThrow());
+    }
+
+    /**
+     * If there is a problem, circuit breaker will use it
+     * @param name
+     * @param error
+     * @return
+     */
+    private String makeReportFallback(String name, Throwable error) {
+        log.warn(error.getMessage());
+        return reportHelper.readTemplate(this.companiesFallbackRepository.getByName(name));
     }
 }

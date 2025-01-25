@@ -18,7 +18,7 @@ public class CompaniesFallbackRepository {
         this.webClient = webClient;
         this.uri = uri;
     }
-    public Company getCompany(String name){
+    public Company getByName(String name){
         log.warn("Calling companies fallback {}", uri);
 
         return this.webClient
