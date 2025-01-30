@@ -12,7 +12,7 @@ cloud:
         brokers: localhost:9092
     function:
       binding:
-        consumerReport-out-0:
+        consumerReport-out-0: # consumerReport-out -> consumerReport <- consumerReport-in
           destination: consumerReport
 
 server:
