@@ -37,6 +37,7 @@ public class ReportServiceImpl implements ReportService{
 
     @Override
     public String saveReport(String report) {
+        System.out.println("Entering saveReport method");
         var format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         var placeHolders = this.reportHelper.getPlaceHoldersFromTemplate(report);
         var webSites = Stream.of(placeHolders.get(3))
@@ -48,7 +49,9 @@ public class ReportServiceImpl implements ReportService{
                 .founder(placeHolders.get(2))
                 .webSites(webSites)
                 .build();
+        System.out.println("Sending report to consumer");
         this.reportPublisher.publishReport(report);
+        System.out.println("Saving report");
         this.companiesRepository.postByName(company);
         return "Saved";
     }
